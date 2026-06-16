@@ -121,10 +121,6 @@ class FailureAnalysisService:
             await db.refresh(reused)
             return reused
 
-        system_prompt = await self._get_system_prompt(db)
-        user_prompt = await self._build_job_context(job, db)
-        llm_config = await self._get_llm_config(db)
-
         analysis = JobFailureAnalysis(
             job_id=job_id,
             run_id=job.run_id,
@@ -135,10 +131,14 @@ class FailureAnalysisService:
             analysis_status="analyzing",
         )
         db.add(analysis)
-        await db.flush()
+        await db.commit()
         await db.refresh(analysis)
 
         try:
+            system_prompt = await self._get_system_prompt(db)
+            user_prompt = await self._build_job_context(job, db)
+            llm_config = await self._get_llm_config(db)
+
             llm_result = await self.llm_client.generate(
                 provider=llm_config.provider,
                 model=llm_config.default_model,

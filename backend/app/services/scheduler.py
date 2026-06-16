@@ -563,12 +563,13 @@ class DataSyncScheduler:
             logger.error(f"DAILY REPORT EMAIL JOB FAILED - Error: {e}", exc_info=True)
             logger.error("=" * 60)
 
-    async def _trigger_failure_analysis_after_sync(self, db):
-        """CI同步完成后触发失败Job分析"""
+    async def _trigger_failure_analysis_after_sync(self, _ci_db):
+        """CI同步完成后触发失败Job分析（使用独立 db session，不阻塞 CI 事务）"""
         from app.services.failure_analysis import FailureAnalysisService
-        service = FailureAnalysisService()
-        results = await service.analyze_batch(days_back=7, db=db)
-        logger.info(f"Post-sync failure analysis: processed {len(results)} failed jobs")
+        async with SessionLocal() as db:
+            service = FailureAnalysisService()
+            results = await service.analyze_batch(days_back=7, db=db)
+            logger.info(f"Post-sync failure analysis: processed {len(results)} failed jobs")
 
     async def _failure_analysis_fallback_job(self) -> None:
         """失败分析兜底定时任务"""
