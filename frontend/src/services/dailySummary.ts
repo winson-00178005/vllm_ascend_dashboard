@@ -245,3 +245,21 @@ export const updateSystemPromptConfig = async (
   const response = await apiClient.put('/system/config/system-prompt', { prompts }, { params: { scope } })
   return response.data
 }
+
+export interface TrendDataItem {
+  date: string
+  pr_count: number
+  issue_count: number
+  commit_count: number
+}
+
+export interface TrendDataResponse {
+  project: string
+  days: number
+  data: TrendDataItem[]
+}
+
+export const getTrendData = async (project: string, days: number = 7): Promise<TrendDataResponse> => {
+  const response = await apiClient.get(`/daily-summary/${project}/trend`, { params: { days } })
+  return response.data
+}

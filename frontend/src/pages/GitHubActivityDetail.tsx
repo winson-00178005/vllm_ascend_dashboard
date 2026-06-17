@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Table, Space, Tag, Typography, Button, Tooltip, Alert, message, Tabs, Empty, DatePicker, Modal } from 'antd'
+import { Card, Table, Space, Tag, Typography, Button, Tooltip, Alert, message, Tabs, Empty, DatePicker, Modal, Segmented } from 'antd'
 import {
   GithubOutlined,
   PullRequestOutlined,
@@ -12,14 +12,16 @@ import {
   CalendarOutlined,
   SyncOutlined,
   ExclamationCircleOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser } from '../hooks/useCurrentUser'
-import { useDailyData, useFetchDailyData, useRefreshDailyStatus, useLLMProviders } from '../hooks/useDailySummary'
+import { useDailyData, useFetchDailyData, useRefreshDailyStatus, useLLMProviders, useTrendData } from '../hooks/useDailySummary'
 import { useCommitAnalysisBatch } from '../hooks/useCommitAnalysis'
 import { AISummaryTab } from '../components/AISummaryTab'
 import { DailyDataItem, DailyCommitItem, GitHubActor } from '../services/dailySummary'
 import { ANALYSIS_STATUSES, CHANGE_TYPES, CommitAnalysisBatchItem, CommitAnalysisStatus, CommitChangeType } from '../services/commitAnalysis'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import utc from 'dayjs/plugin/utc'
@@ -78,12 +80,14 @@ function GitHubActivityDetail() {
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))
   const [isFetching, setIsFetching] = useState(false)
   const [isConfirmVisible, setIsConfirmVisible] = useState(false)
+  const [trendDays, setTrendDays] = useState<number>(7)
 
   // 获取每日数据
   const { data, isLoading, refetch } = useDailyData(project || '', selectedDate)
 
-  // 获取 LLM 提供商列表
   const { data: llmProviders } = useLLMProviders()
+
+  const { data: trendData, isLoading: isTrendLoading } = useTrendData(project || '', trendDays)
 
   // 判断当天是否已有数据
   const hasData = data?.has_data || (data?.counts && (data.counts.prs > 0 || data.counts.issues > 0 || data.counts.commits > 0))
@@ -528,6 +532,72 @@ function GitHubActivityDetail() {
                 />
               ) : (
                 <Empty description="当日无 Commit" />
+              ),
+            },
+            {
+              key: 'trend',
+              label: (
+                <Space>
+                  <LineChartOutlined style={{ color: '#13c2c2' }} />
+                  <span>趋势图</span>
+                </Space>
+              ),
+              children: (
+                <div style={{ padding: '16px 0' }}>
+                  <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text type="secondary">近 {trendDays} 天 PR/Issue/Commit 数量趋势（点击下方标签可切换线条显示/隐藏）</Text>
+                    <Segmented
+                      options={[
+                        { label: '7天', value: 7 },
+                        { label: '30天', value: 30 },
+                        { label: '90天', value: 90 },
+                      ]}
+                      value={trendDays}
+                      onChange={(val) => setTrendDays(val as number)}
+                    />
+                  </div>
+                  {isTrendLoading ? (
+                    <div style={{ textAlign: 'center', padding: 40 }}>
+                      <SyncOutlined spin style={{ fontSize: 24, color: '#1890ff' }} />
+                      <Text style={{ marginLeft: 8 }}>加载趋势数据...</Text>
+                    </div>
+                  ) : trendData?.data && trendData.data.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart data={trendData.data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(v: string) => dayjs(v).format('MM-DD')}
+                        />
+                        <YAxis allowDecimals={false} />
+                        <RechartsTooltip
+                          labelFormatter={(label: string) => dayjs(label).format('YYYY-MM-DD')}
+                          formatter={(value: number, name: string) => {
+                            const labels: Record<string, string> = { pr_count: 'PR', issue_count: 'Issue', commit_count: 'Commit' }
+                            return [value, labels[name] || name]
+                          }}
+                        />
+                        <Legend
+                          formatter={(value: string) => {
+                            const labels: Record<string, string> = { pr_count: 'PR', issue_count: 'Issue', commit_count: 'Commit' }
+                            return labels[value] || value
+                          }}
+                        />
+                        <Line type="monotone" dataKey="pr_count" stroke="#1890ff" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }}
+                          label={({ x, y, value, index }: any) => value > 0 ? <text key={`pr-${index}`} x={x} y={y - 12} fill="#1890ff" fontSize={11} textAnchor="middle" fontWeight={500}>{value}</text> : <g key={`pr-empty-${index}`} />}
+                        />
+                        <Line type="monotone" dataKey="issue_count" stroke="#fa8c16" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }}
+                          label={({ x, y, value, index }: any) => value > 0 ? <text key={`issue-${index}`} x={x} y={y - 12} fill="#fa8c16" fontSize={11} textAnchor="middle" fontWeight={500}>{value}</text> : <g key={`issue-empty-${index}`} />}
+                        />
+                        <Line type="monotone" dataKey="commit_count" stroke="#52c41a" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }}
+                          label={({ x, y, value, index }: any) => value > 0 ? <text key={`commit-${index}`} x={x} y={y - 12} fill="#52c41a" fontSize={11} textAnchor="middle" fontWeight={500}>{value}</text> : <g key={`commit-empty-${index}`} />}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <Empty description="暂无趋势数据" />
+                  )}
+                </div>
               ),
             },
             {

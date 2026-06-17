@@ -196,3 +196,11 @@ export const useAvailableDates = (project: string, limit: number = 30) => {
     enabled: !!project,
   })
 }
+
+export const useTrendData = (project: string, days: number = 7) => {
+  return useQuery({
+    queryKey: ['trend-data', project, days],
+    queryFn: () => api.getTrendData(project, days),
+    enabled: !!project,
+  })
+}
