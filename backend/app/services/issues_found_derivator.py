@@ -90,8 +90,8 @@ class IssuesFoundDerivator:
                         linked_bugfix_shas.add(sha)
                     if "test" in categories:
                         linked_test_shas.add(sha)
-                # 收集 schedule 运行的失败时间，用于弱关联
-                if event == "schedule" and run.started_at:
+                # 收集 schedule/workflow_dispatch/push 运行的失败时间，用于弱关联
+                if event in ("schedule", "workflow_dispatch", "push") and run.started_at:
                     schedule_failures.append(run.started_at)
 
             # 6. 辅信号：schedule 运行失败后 N 天内合入的 BugFix PR（按模块关键词弱关联）
@@ -149,7 +149,7 @@ class IssuesFoundDerivator:
                     linked_bugfix.add(sha)
                 if "test" in cats:
                     linked_test.add(sha)
-            if event == "schedule" and run.started_at:
+            if event in ("schedule", "workflow_dispatch", "push") and run.started_at:
                 schedule_failures.append(run.started_at)
 
         if schedule_failures and bugfix_merged_at:
@@ -228,19 +228,14 @@ class IssuesFoundDerivator:
         schedule_failures: list[datetime],
         bugfix_timeline: list[tuple[datetime, str, str]],
     ) -> set[str]:
-        """对 schedule 运行失败，按模块关键词弱关联 N 天内合入的 BugFix PR。
+        """对 schedule/workflow_dispatch 运行失败，弱关联时间窗口内的 BugFix PR。
 
-        判定条件（同时满足）：
-          1. BugFix PR 在失败发生后 WEAK_LINK_WINDOW_DAYS 天内合入
-          2. 用例有 module_name，且 BugFix PR 标题包含该模块关键词
-             或用例 test_name 包含的模型名出现在 PR 标题中
-        弱关联严格度高于主信号，避免误报。
+        策略：
+          1. 按模块/模型关键词匹配（失败后 WEAK_LINK_WINDOW_DAYS 天内合入的 BugFix PR）
+          2. 若无匹配，回退到纯时间窗口（失败前 24h 内合入的 BugFix PR，
+             代表测试捕捉到了近期合入代码引入的回归）
         """
-        if not case.module_name and not case.test_name:
-            return set()
-
         module_kw = (case.module_name or "").lower()
-        # 从 test_name 提取模型关键词（如 qwen, deepseek, llama）
         model_kw = self._extract_model_keyword(case.test_name)
 
         linked: set[str] = set()
@@ -252,6 +247,14 @@ class IssuesFoundDerivator:
                     if (module_kw and module_kw in title_lower) or (
                         model_kw and model_kw in title_lower
                     ):
+                        linked.add(sha)
+
+        # 回退：纯时间窗口（失败前 24h 内合入的 BugFix PR，代表测试捕捉到近期合入代码的回归）
+        if not linked:
+            for fail_at in schedule_failures:
+                window_start = fail_at - timedelta(hours=24)
+                for merged_at, title, sha in bugfix_timeline:
+                    if window_start <= merged_at <= fail_at and sha:
                         linked.add(sha)
         return linked
 
