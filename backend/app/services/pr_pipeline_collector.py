@@ -225,6 +225,7 @@ class PRPipelineCollector:
         pr_data = {
             "number": pr_number,
             "title": pr.get("title", ""),
+            "body": pr.get("body") or "",
             "state": pr.get("state", ""),
             "html_url": pr.get("html_url", ""),
             "created_at": pr.get("created_at", ""),

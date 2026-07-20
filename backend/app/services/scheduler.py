@@ -992,6 +992,19 @@ class DataSyncScheduler:
                 svc = TestBoardService(db, self.github_client)
                 count = await svc.parse_ci_results(days_back=7)
                 logger.info(f"TEST BOARD RESULT PARSE JOB COMPLETED - {count} results parsed")
+                # CI 同步后自动推导发现问题数（auto_issues_found），保持数据最新
+                if count > 0:
+                    try:
+                        from app.services.issues_found_derivator import IssuesFoundDerivator
+                        derivator = IssuesFoundDerivator(db)
+                        derivation = await derivator.derive_all()
+                        logger.info(
+                            "TEST BOARD ISSUES DERIVATION - updated=%d skipped=%d issues=%d suspected=%d",
+                            derivation["updated"], derivation["skipped_override"],
+                            derivation["issues_total"], derivation["suspected_total"],
+                        )
+                    except Exception as deriv_err:
+                        logger.error(f"TEST BOARD ISSUES DERIVATION FAILED: {deriv_err}", exc_info=True)
             except Exception as e:
                 logger.error(f"TEST BOARD RESULT PARSE JOB FAILED: {e}", exc_info=True)
 

@@ -11,7 +11,7 @@ backend_dir = str(Path(__file__).resolve().parent.parent)
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from app.models import Base, CIResult, PullRequest  # noqa: E402
+from app.models import Base, CIResult, PullRequest, WorkflowConfig  # noqa: E402
 from app.models.test_board import TestCase, TestRun, TestSuiteSnapshot  # noqa: E402
 
 
@@ -36,6 +36,7 @@ async def db_session():
                 sync_conn, tables=[
                     PullRequest.__table__,
                     CIResult.__table__,
+                    WorkflowConfig.__table__,
                     TestCase.__table__,
                     TestRun.__table__,
                     TestSuiteSnapshot.__table__,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Card, Table, Space, Statistic, Row, Col, Typography, Tabs, Tag, Button, message, Modal, Input, Select, Progress, Tooltip, Empty, InputNumber, Form,
+  Card, Table, Space, Statistic, Row, Col, Typography, Tabs, Tag, Button, message, Modal, Input, Select, Progress, Tooltip, Empty, InputNumber, Form, Checkbox,
 } from 'antd'
 import {
   BugOutlined, CheckCircleOutlined, WarningOutlined, ClockCircleOutlined,
@@ -208,20 +208,26 @@ function TestObservabilityDashboard() {
       },
     },
     {
-      title: '发现问题数',
-      dataIndex: 'issues_found',
-      key: 'issues_found',
-      width: 100,
+      title: <Tooltip title="自动从 CI 流水线失败记录关联 BugFix PR 推导；人工设置后以人工值为准">发现问题数</Tooltip>,
+      dataIndex: 'effective_issues_found',
+      key: 'effective_issues_found',
+      width: 110,
       sorter: true,
-      render: (count: number) => {
+      render: (count: number, record: TestCaseItem) => {
         const n = count ?? 0
-        return n > 0 ? <Tag color="red">{n}</Tag> : <Text type="secondary">0</Text>
+        const isAuto = !record.issues_found_override
+        return (
+          <Tooltip title={isAuto ? `自动推导（auto=${record.auto_issues_found ?? 0}），人工设置后可覆盖` : '人工维护值'}>
+            {n > 0 ? <Tag color="red">{n}</Tag> : <Text type="secondary">0</Text>}
+            {isAuto && record.auto_issues_found > 0 && <Text type="secondary" style={{ fontSize: 10 }}> 自动</Text>}
+          </Tooltip>
+        )
       },
     },
     {
       title: '疑似用例问题',
-      dataIndex: 'suspected_test_issue_count',
-      key: 'suspected_test_issue_count',
+      dataIndex: 'effective_suspected_test_issue_count',
+      key: 'effective_suspected_test_issue_count',
       width: 120,
       sorter: true,
       render: (count: number) => {
@@ -261,12 +267,13 @@ function TestObservabilityDashboard() {
           onClick={() => {
             setEditingCase(record)
             editForm.setFieldsValue({
-              issues_found: record.issues_found ?? 0,
-              suspected_test_issue_count: record.suspected_test_issue_count ?? 0,
+              issues_found: record.effective_issues_found ?? 0,
+              suspected_test_issue_count: record.effective_suspected_test_issue_count ?? 0,
               is_flaky: record.is_flaky,
               is_flaky_manual: record.is_flaky_manual,
               owner: record.owner ?? '',
               owner_email: record.owner_email ?? '',
+              use_auto_issues: false,
             })
           }}
         >
@@ -717,7 +724,12 @@ function TestObservabilityDashboard() {
       >
         {editingCase && (
           <Form form={editForm} layout="vertical">
-            <Form.Item name="issues_found" label="发现问题数" tooltip="该用例发现的真实产品问题数量">
+            {editingCase.issues_found_override && (
+              <Form.Item name="use_auto_issues" valuePropName="checked" tooltip="勾选后将清除人工覆盖标记，恢复由 CI 流水线+PR 数据自动推导">
+                <Checkbox>恢复自动推导（清除人工值，使用 auto={editingCase.auto_issues_found ?? 0}）</Checkbox>
+              </Form.Item>
+            )}
+            <Form.Item name="issues_found" label="发现问题数" tooltip="该用例发现的真实产品问题数量；保存后将以人工值为准（自动推导值不再覆盖）">
               <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item name="suspected_test_issue_count" label="疑似用例问题次数" tooltip="该用例被怀疑为用例自身问题（非产品问题）的次数">

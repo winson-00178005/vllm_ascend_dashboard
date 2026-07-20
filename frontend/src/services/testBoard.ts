@@ -42,6 +42,11 @@ export interface TestCaseItem {
   issues_found: number
   suspected_test_issue_count: number
   is_flaky_manual: boolean
+  auto_issues_found: number
+  auto_suspected_test_issue_count: number
+  issues_found_override: boolean
+  effective_issues_found: number
+  effective_suspected_test_issue_count: number
 }
 
 export interface TestRunItem {
@@ -259,6 +264,7 @@ export interface TestCaseUpdatePayload {
   is_flaky_manual?: boolean
   owner?: string
   owner_email?: string
+  use_auto_issues?: boolean
 }
 
 export const updateCase = async (caseId: number, payload: TestCaseUpdatePayload): Promise<TestCaseItem> => {

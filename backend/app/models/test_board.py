@@ -58,9 +58,13 @@ class TestCase(Base):
     lifetime_runs = Column(Integer, default=0)
     lifetime_failures = Column(Integer, default=0)
     # 超级管理员可维护字段
-    issues_found = Column(Integer, default=0)  # 发现问题数（该用例发现的真实产品问题数）
+    issues_found = Column(Integer, default=0)  # 发现问题数（人工维护值；为 0 时回退到 auto_issues_found）
     suspected_test_issue_count = Column(Integer, default=0)  # 被怀疑为用例自身问题的次数
     is_flaky_manual = Column(Boolean, default=False, index=True)  # 为 True 时 is_flaky 由人工维护，自动检测不再覆盖
+    # 自动推导字段（由 IssuesFoundDerivator 定期计算，不可人工编辑）
+    auto_issues_found = Column(Integer, default=0)  # 自动推导的发现问题数（CI失败 ↔ BugFix PR 关联）
+    auto_suspected_test_issue_count = Column(Integer, default=0)  # 自动推导的疑似用例问题次数
+    issues_found_override = Column(Boolean, default=False, index=True)  # 人工是否显式设置过 issues_found
     created_at = Column(TIMESTAMP, default=lambda: datetime.now(UTC))
     updated_at = Column(TIMESTAMP, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 

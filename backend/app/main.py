@@ -256,6 +256,9 @@ async def _migrate_test_case_columns():
                 ("issues_found", "INTEGER DEFAULT 0", "INT DEFAULT 0"),
                 ("suspected_test_issue_count", "INTEGER DEFAULT 0", "INT DEFAULT 0"),
                 ("is_flaky_manual", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT FALSE"),
+                ("auto_issues_found", "INTEGER DEFAULT 0", "INT DEFAULT 0"),
+                ("auto_suspected_test_issue_count", "INTEGER DEFAULT 0", "INT DEFAULT 0"),
+                ("issues_found_override", "BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT FALSE"),
             ]
 
             added = []

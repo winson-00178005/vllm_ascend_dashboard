@@ -142,7 +142,9 @@ class TestBoardService:
                     "lifetime_runs": TestCase.lifetime_runs,
                     "lifetime_failures": TestCase.lifetime_failures,
                     "issues_found": TestCase.issues_found,
-                    "suspected_test_issue_count": TestCase.suspected_test_issue_count}
+                    "effective_issues_found": TestCase.auto_issues_found,
+                    "suspected_test_issue_count": TestCase.suspected_test_issue_count,
+                    "effective_suspected_test_issue_count": TestCase.auto_suspected_test_issue_count}
         sort_col = sort_map.get(sort, TestCase.health_score)
         stmt = stmt.order_by(desc(sort_col) if order == "desc" else asc(sort_col))
 

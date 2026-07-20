@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class TestHealthScore(BaseModel):
@@ -51,6 +51,24 @@ class TestCaseResponse(BaseModel):
     issues_found: int = 0
     suspected_test_issue_count: int = 0
     is_flaky_manual: bool = False
+    auto_issues_found: int = 0
+    auto_suspected_test_issue_count: int = 0
+    issues_found_override: bool = False
+    # 人工未显式设置时，展示自动推导值；人工设置后以人工值为准
+    effective_issues_found: int = 0
+    effective_suspected_test_issue_count: int = 0
+
+    @model_validator(mode="after")
+    def _compute_effective_issues(self) -> "TestCaseResponse":
+        if self.issues_found_override:
+            self.effective_issues_found = self.issues_found
+        else:
+            self.effective_issues_found = self.auto_issues_found
+        if self.issues_found_override:
+            self.effective_suspected_test_issue_count = self.suspected_test_issue_count
+        else:
+            self.effective_suspected_test_issue_count = self.auto_suspected_test_issue_count
+        return self
 
 
 class TestCaseUpdateRequest(BaseModel):
@@ -58,6 +76,9 @@ class TestCaseUpdateRequest(BaseModel):
 
     所有字段可选，仅更新传入的字段。当 is_flaky_manual=True 时，is_flaky 以人工标记为准，
     自动检测将不再覆盖；置为 False 则恢复自动检测。
+
+    issues_found / suspected_test_issue_count 一旦人工设置，会标记 issues_found_override=True，
+    后续自动推导不再覆盖。传入 use_auto_issues=True 可清除人工覆盖标记，恢复自动推导。
     """
     issues_found: int | None = Field(None, ge=0)
     suspected_test_issue_count: int | None = Field(None, ge=0)
@@ -65,6 +86,7 @@ class TestCaseUpdateRequest(BaseModel):
     is_flaky_manual: bool | None = None
     owner: str | None = Field(None, max_length=100)
     owner_email: str | None = Field(None, max_length=200, pattern=r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+    use_auto_issues: bool | None = None
 
 
 class TestRunResponse(BaseModel):

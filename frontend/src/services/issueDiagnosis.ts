@@ -2,7 +2,7 @@ import api from './api'
 import { SSEParser, type SSEEvent } from './sseParser'
 
 const API_BASE_URL = (typeof import.meta !== 'undefined' &&
-  (import.meta as any).env?.VITE_API_BASE_URL) || 'http://localhost:8000/api/v1'
+  (import.meta as any).env?.VITE_API_BASE_URL) || '/api/v1'
 
 export interface IssueDiagnosisRequest {
   data_source_type: 'pr_pipeline' | 'ci_job' | 'commit' | 'manual'
