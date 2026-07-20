@@ -141,6 +141,7 @@ class CodeMetricsCollector:
                 "loc_c": lang_loc.get("C", 0),
                 "loc_cmake": lang_loc.get("CMake", 0),
                 "loc_shell": lang_loc.get("Bourne Shell", 0) + lang_loc.get("Shell", 0),
+                "lang_loc": lang_loc,
             }
         except FileNotFoundError:
             logger.warning("cloc not installed, skipping code size metrics")
@@ -399,9 +400,16 @@ class CodeMetricsCollector:
         return modules
 
     def _extract_language_loc(self, cloc_data: dict | None) -> dict:
-        """从 cloc 数据提取语言分布"""
+        """从 cloc 数据提取语言分布。
+
+        优先使用 cloc 返回的完整 lang_loc（包含所有语言），
+        确保语言分布求和等于 total_loc。回退到 5 种主要语言。
+        """
         if not cloc_data:
             return {}
+        lang_loc = cloc_data.get("lang_loc")
+        if lang_loc and isinstance(lang_loc, dict):
+            return dict(lang_loc)
         return {
             "Python": cloc_data.get("loc_python", 0),
             "C++": cloc_data.get("loc_cpp", 0),
