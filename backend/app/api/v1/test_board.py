@@ -80,6 +80,7 @@ async def get_cases(
     filters = {k: v for k, v in filters.items() if v is not None}
     svc = TestBoardService(db)
     data = await svc.get_cases(filters=filters, page=page, per_page=per_page)
+    data["items"] = [TestCaseResponse.model_validate(item) for item in data["items"]]
     return data
 
 
@@ -89,6 +90,7 @@ async def get_case_detail(case_id: int, db: AsyncSession = Depends(get_db), user
     data = await svc.get_case_detail(case_id)
     if not data:
         return {"error": "Case not found"}
+    data["case"] = TestCaseResponse.model_validate(data["case"])
     return data
 
 
@@ -279,7 +281,7 @@ async def update_case(
             user.username, case_id,
             {k: {"from": v[0], "to": v[1]} for k, v in changes.items()},
         )
-    return case
+    return TestCaseResponse.model_validate(case)
 
 
 @router.post("/derive-issues")
