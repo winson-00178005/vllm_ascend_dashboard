@@ -529,7 +529,8 @@ def _run(cmd: list[str], cwd: Path, timeout: int) -> None:
     except subprocess.TimeoutExpired as e:
         raise RuntimeError(f"{' '.join(cmd)} timed out after {timeout}s") from e
     if r.returncode != 0:
-        raise RuntimeError(f"{' '.join(cmd)} failed: {r.stderr[:500]}")
+        msg = (r.stderr or r.stdout or "")[:500]
+        raise RuntimeError(f"{' '.join(cmd)} failed: {msg}")
 
 
 def _infer_covdata_commit(cache: Any, covdata_when: str | None) -> str | None:
@@ -746,8 +747,8 @@ def process_line_coverage(tar_path: Path, tar_signature: str, covdata_when: str 
                 f = tar.extractfile(member)
                 if f is None:
                     continue
-                # 使用 hash 命名避免不同路径扁平化后冲突
-                safe_name = hashlib.sha1(member.name.encode()).hexdigest()[:16] + ".covdata"
+                # coverage combine 仅识别 .coverage.* 文件名模式
+                safe_name = ".coverage." + hashlib.sha1(member.name.encode()).hexdigest()[:16]
                 outp = covdata_dir / safe_name
                 with open(outp, "wb") as wf:
                     shutil.copyfileobj(f, wf)
