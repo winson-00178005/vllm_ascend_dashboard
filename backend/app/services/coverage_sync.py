@@ -517,7 +517,7 @@ def _write_coveragerc(rc_path: Path, source_dir: Path | None = None) -> None:
         f"    {canonical}\n"
         "    /__w/vllm-ascend/vllm-ascend/vllm_ascend\n"
         "    */vllm_ascend\n"
-        "[report]\nexclude_lines =\n"
+        "[report]\nignore_errors = True\nexclude_lines =\n"
         "    pragma: no cover\n"
         "    if __name__ == .__main__.:\n"
         "    raise NotImplementedError\n",
