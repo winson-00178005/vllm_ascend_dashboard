@@ -508,12 +508,15 @@ def _process_tar_breadth(tar_path: Path, signature: str) -> dict:
 # ---------------------------------------------------------------------------
 # PR 行覆盖率%（方案2：coverage 包 combine）
 # ---------------------------------------------------------------------------
-def _write_coveragerc(rc_path: Path) -> None:
+def _write_coveragerc(rc_path: Path, source_dir: Path | None = None) -> None:
+    """生成 .coveragerc，[paths] 将 CI 路径映射到本地 clone。"""
+    canonical = str(source_dir / "vllm_ascend") if source_dir else "vllm_ascend"
     rc_path.write_text(
         "[run]\nsource = vllm_ascend\n"
         "[paths]\nvllm_ascend =\n"
-        "    /__w/vllm-ascend/vllm-ascend/vllm_ascend/\n"
-        "    */vllm_ascend/\n"
+        f"    {canonical}\n"
+        "    /__w/vllm-ascend/vllm-ascend/vllm_ascend/*\n"
+        "    */vllm_ascend/*\n"
         "[report]\nexclude_lines =\n"
         "    pragma: no cover\n"
         "    if __name__ == .__main__.:\n"
@@ -754,7 +757,7 @@ def process_line_coverage(tar_path: Path, tar_signature: str, covdata_when: str 
                     shutil.copyfileobj(f, wf)
 
         rc = work_dir / ".coveragerc"
-        _write_coveragerc(rc)
+        _write_coveragerc(rc, cache.cache_dir)
 
         # [paths] 预校验：采样 covdata file.path，验证映射后在本地 clone 存在；
         # 失败则降级为 partial/path_mapping 并跳过昂贵的 combine（检视意见 #4）
@@ -772,12 +775,12 @@ def process_line_coverage(tar_path: Path, tar_signature: str, covdata_when: str 
                 "warning": "[paths] 路径映射预校验失败：covdata 源码路径在本地 clone 未找到，已跳过行覆盖率计算",
             }
 
-        # combine + json
-        _run(["python", "-m", "coverage", "combine", "--rcfile", str(rc), str(covdata_dir)], work_dir,
+        # combine + json（cwd 设为本地 clone 目录，让 coverage json 能找到源码）
+        _run(["python", "-m", "coverage", "combine", "--rcfile", str(rc), str(covdata_dir)], cache.cache_dir,
              settings.PR_COVERAGE_LINE_TIMEOUT_SECONDS)
         report_json = work_dir / "coverage.json"
         _run(["python", "-m", "coverage", "json", "-o", str(report_json), "--rcfile", str(rc)],
-             work_dir, settings.PR_COVERAGE_LINE_TIMEOUT_SECONDS)
+             cache.cache_dir, settings.PR_COVERAGE_LINE_TIMEOUT_SECONDS)
 
         if not report_json.exists():
             raise RuntimeError("coverage.json not generated")
