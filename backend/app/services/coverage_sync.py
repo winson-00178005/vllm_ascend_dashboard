@@ -683,15 +683,20 @@ def _safe_commit(cache: Any) -> str | None:
 
 
 def _validate_path_mapping(tar_path: Path, cache: Any, sample_size: int = 5) -> bool:
-    """[paths] 预校验：采样 covdata 的 file.path，验证映射后在本地 clone 存在。
+    """[paths] 预校验：采样多个 covdata 的 file.path，验证映射后在本地 clone 存在。
 
+    采样最多 5 个 covdata 文件，聚合所有路径计算命中率。
     返回 True 表示映射生效（多数采样文件存在），False 表示映射失败（应降级跳过 combine）。
     """
     sampled = 0
     found = 0
+    covdata_checked = 0
+    max_covdata = 5
     try:
         with tarfile.open(tar_path, "r") as tar:
             for member in tar:
+                if covdata_checked >= max_covdata:
+                    break
                 if not _is_covdata_member(member):
                     continue
                 f = tar.extractfile(member)
@@ -706,11 +711,11 @@ def _validate_path_mapping(tar_path: Path, cache: Any, sample_size: int = 5) -> 
                     Path(tmp.name).unlink(missing_ok=True)
                 if not stats or not stats["files"]:
                     continue
+                covdata_checked += 1
                 for raw in stats["files"][:sample_size]:
                     sampled += 1
                     if (cache.cache_dir / raw).exists():
                         found += 1
-                break  # 仅采样一个 covdata
     except Exception as e:  # noqa: BLE001
         logger.warning("path mapping pre-validation failed: %s", e)
         return False
