@@ -116,7 +116,13 @@ function TestObservabilityDashboard() {
       ellipsis: true,
       render: (name: string, record: TestCaseItem) => (
         <Space size={4}>
-          <span style={{ fontWeight: 500 }}>{name}</span>
+          {record.github_url ? (
+            <a href={record.github_url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 500, color: '#1890ff' }}>
+              {name}
+            </a>
+          ) : (
+            <span style={{ fontWeight: 500 }}>{name}</span>
+          )}
           {record.is_flaky && <Tag color="volcano">Flaky</Tag>}
           {record.is_retired && <Tag color="default">已退出</Tag>}
         </Space>

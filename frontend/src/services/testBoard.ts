@@ -48,6 +48,7 @@ export interface TestCaseItem {
   effective_issues_found: number
   effective_suspected_test_issue_count: number
   is_retired: boolean
+  github_url: string | null
 }
 
 export interface TestRunItem {

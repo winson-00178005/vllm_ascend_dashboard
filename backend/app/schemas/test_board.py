@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
+import re
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -59,6 +60,8 @@ class TestCaseResponse(BaseModel):
     effective_suspected_test_issue_count: int = 0
     # 已退出用例：超过 TEST_CASE_STALE_DAYS 天未运行，默认隐藏、不统计、不暴露失败数
     is_retired: bool = False
+    # GitHub 跳转链接（用例配置文件搜索或 Actions 工作流页面）
+    github_url: str | None = None
 
     @model_validator(mode="after")
     def _compute_effective_issues(self) -> "TestCaseResponse":
@@ -88,6 +91,29 @@ class TestCaseResponse(BaseModel):
             self.is_retired = _is_past(self.last_run_at)
         elif self.first_seen_at:
             self.is_retired = _is_past(self.first_seen_at)
+        return self
+
+    @model_validator(mode="after")
+    def _compute_github_url(self) -> "TestCaseResponse":
+        repo = "https://github.com/vllm-project/vllm-ascend"
+        # 从 test_name 中提取 YAML 配置文件名
+        # 格式: "single-node (main, model, runner, Config.yaml)" 或 "multi-node (..., Config.yaml, 2)"
+        yaml_match = re.search(r'([\w\-\.]+\.yaml)', self.test_name or "")
+        if yaml_match:
+            yaml_file = yaml_match.group(1)
+            self.github_url = f"{repo}/search?q={yaml_file}&type=code"
+        else:
+            # 回退：根据 test_suite 映射到 GitHub Actions 工作流页面
+            workflow_map = {
+                "Nightly-A2": "schedule_nightly_test_a2.yaml",
+                "Nightly-A3": "schedule_nightly_test_a3.yaml",
+                "Nightly-A3-560T": "schedule_nightly_test_a3.yaml",
+                "E2E-Light": "pr_test_light.yaml",
+                "E2E-Full": "pr_test_full.yaml",
+            }
+            wf = workflow_map.get(self.test_suite or "")
+            if wf:
+                self.github_url = f"{repo}/actions/workflows/{wf}"
         return self
 
 
